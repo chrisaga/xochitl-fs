@@ -21,10 +21,10 @@ import itertools
 import traceback
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
-from lazy import lazy
+"""from lazy import lazy"""
 from progress.bar import Bar
 from io import BytesIO
-import remarkable_fs.rM2svg
+"""import remarkable_fs.rM2svg"""
 
 try:
     from json import JSONDecodeError
@@ -238,17 +238,18 @@ class DocumentRoot(Collection):
     filenames and the values are nodes. You can also use find_node() to look up
     a node by id."""
 
-    def __init__(self, connection):
-        """connection - a Connection object returned by remarkable_fs.connection.connect()."""
+    def __init__(self, rootpath):
+        """rootpath - the path of the document root."""
 
         super(DocumentRoot, self).__init__(self, "", None)
         self.nodes = {"": self}
-	""" TODO """
-        self.sftp = connection.sftp
+        """ HK - Documents are on a local filesystem """
+        os.chdir(rootpath)
+        self.rootpath = rootpath
         self.templates = {}
 
-	""" TODO """
-        paths = fnmatch.filter(self.sftp.listdir(), '*.metadata')
+        """ HK - Documents are on a local filesystem """
+        paths = fnmatch.filter(os.listdir(rootpath), '*.metadata')
         bar = Bar("Reading document information", max=len(paths))
         for path in paths:
             id, _ = os.path.splitext(path)
@@ -308,15 +309,14 @@ class DocumentRoot(Collection):
         self.nodes[node.id] = node
 
     def read_file(self, file):
-        """Read a file from SFTP."""
-	""" TODO """
-        return self.sftp.open(file, "rb").read()
+        """HK - Read a file from local filesystem."""
+        return open(file, "rb").read()
 
     def write_file(self, file, data):
-        """Write a file to SFTP."""
-	""" TODO """
-        f = self.sftp.open(file, "wb")
-        f.set_pipelined()
+        """HK - Write a file from local filesystem."""
+        f = open(file, "wb")
+        """ HK - this was used withsftp
+        f.set_pipelined()"""
         f.write(memoryview(data))
 
     def read_json(self, file):
@@ -368,19 +368,22 @@ class Document(Node):
         if self.file_type() == "":
             raise NoContents()
         self.file_name = self.name + "." + self.file_type()
-	""" TODO """
-        self._size = self.root.sftp.stat(self.id + "." + self.file_type()).st_size
+        """ HK - get size of ??? """
+        """ original script tries to stat xxx.notebok which doesn't exist
+        self._size = os.stat(self.id + "." + self.file_type()).st_size
+        TODO: """
+        self._size = 10
 
     def file_type(self):
         """Return the type of file."""
         return self.content["fileType"]
 
-    @lazy
+    """ @lazy"""
     def file(self):
         """A file handle to the file contents itself."""
         ext = self.file_type()
-	""" TODO """
-        return self.root.sftp.open(self.id + "." + ext, "rb")
+        """ HK """
+        return open(self.id + "." + ext, "rb")
 
     @property
     def size(self):
