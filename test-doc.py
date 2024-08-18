@@ -6,5 +6,14 @@ root=DocumentRoot("/home/chris/local/reMarkable-backup/")
 
 
 """print(root.children.items())"""
-for n in root.children.items():
+print(root.name)
+
+for s in root.children:
+    n=root.get(s)
+    print("---")
+    print(n.metadata["visibleName"] + " ", n.size)
+    print(n.metadata)
     print(n)
+
+"""print(root)"""
+
