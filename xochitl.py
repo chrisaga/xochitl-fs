@@ -22,6 +22,15 @@ except ImportError:
 import fuse
 from fuse import Fuse
 
+from documents import Collection, Document, NewDocument, DocumentRoot
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('/tmp/xochitl.log')
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError("your fuse-py doesn't know of fuse.__version__, probably it's too old.")
@@ -41,7 +50,7 @@ def flag2mode(flags):
     return m
 
 
-class Xmp(Fuse):
+class Xochitl(Fuse):
 
     def __init__(self, *args, **kw):
 
@@ -51,6 +60,7 @@ class Xmp(Fuse):
         #import thread
         #thread.start_new_thread(self.mythread, ())
         self.root = '/'
+        logger.debug("self.root=" + self.root)
 
 #    def mythread(self):
 #
@@ -64,19 +74,23 @@ class Xmp(Fuse):
 #            print "mythread: ticking"
 
     def getattr(self, path):
+        logger.debug("getattr '" + path +"'")
         return os.lstat("." + path)
 
     def readlink(self, path):
         return os.readlink("." + path)
 
     def readdir(self, path, offset):
+        logger.debug("readdir '" + path +"'")
         for e in os.listdir("." + path):
             yield fuse.Direntry(e)
+        
 
     def unlink(self, path):
         os.unlink("." + path)
 
     def rmdir(self, path):
+        logger.debug("rmddir" + path)
         os.rmdir("." + path)
 
     def symlink(self, path, path1):
@@ -100,9 +114,11 @@ class Xmp(Fuse):
         f.close()
 
     def mknod(self, path, mode, dev):
+        logger.debug("mknod" + path)
         os.mknod("." + path, mode, dev)
 
     def mkdir(self, path, mode):
+        logger.debug("mkdir" + path)
         os.mkdir("." + path, mode)
 
     def utime(self, path, times):
@@ -158,12 +174,16 @@ class Xmp(Fuse):
             - f_ffree - nunber of free file inodes
         """
 
+        logger.debug("statfs '" + self.root + "'")
         return os.statvfs(".")
 
     def fsinit(self):
+        logger.info("initializing DocumentRoot")
+        logger.debug("fsinit '" + self.root +"'")
+        self.doc_root = DocumentRoot(self.root)
         os.chdir(self.root)
 
-    class XmpFile(object):
+    class XochitlFile(object):
 
         def __init__(self, path, flags, *mode):
             self.file = os.fdopen(os.open("." + path, flags, *mode),
@@ -217,6 +237,7 @@ class Xmp(Fuse):
             os.close(os.dup(self.fd))
 
         def fgetattr(self):
+            logger.debug("fgetattr '" + self.file.name + "'")
             return os.fstat(self.fd)
 
         def ftruncate(self, len):
@@ -264,8 +285,8 @@ class Xmp(Fuse):
 
 
     def main(self, *a, **kw):
-
-        self.file_class = self.XmpFile
+        """ Starting the server """
+        self.file_class = self.XochitlFile
 
         return Fuse.main(self, *a, **kw)
 
@@ -277,7 +298,7 @@ Userspace nullfs-alike: mirror the filesystem tree from some point on.
 
 """ + Fuse.fusage
 
-    server = Xmp(version="%prog " + fuse.__version__,
+    server = Xochitl(version="%prog " + fuse.__version__,
                  usage=usage,
                  dash_s_do='setsingle')
 
@@ -292,6 +313,8 @@ Userspace nullfs-alike: mirror the filesystem tree from some point on.
         print("can't enter root of underlying filesystem", file=sys.stderr)
         sys.exit(1)
 
+    logger.info("server.root=" + server.root)
+    logger.info("starting server")
     server.main()
 
 
