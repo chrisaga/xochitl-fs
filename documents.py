@@ -355,6 +355,21 @@ class DocumentRoot(Collection):
 
         return file.name
 
+    # New methods which wer not in the original documents.py
+
+    def get_node_from_path(self, path):
+        """Get node object from fuse path"""
+        names = path.split('/')
+        for entry in names:
+            if entry == '':
+                node = self
+            elif node == None:
+                break
+            else:
+                node = node.get(entry)
+        return node
+
+
 class NoContents(Exception):
     """An exception that indicates that a document only has notes and no PDF or EPUB file."""
     pass

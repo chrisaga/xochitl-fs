@@ -22,6 +22,15 @@ if isinstance(node, Collection):
     for s in node:
         print(s)
         
+node = root.get("Autres")
+print (".")
+print ("..")
+for s in node:
+    print(node.get(s))
+
+print("=======")
+node = root.get_node_from_path("/Autres/DYL.notebook")
+print (node)
 
 """print(root)"""
 

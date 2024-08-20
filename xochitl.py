@@ -86,46 +86,39 @@ class Xochitl(Fuse):
     def getattr(self, path):
         logger.debug("getattr '" + path +"'")
         st = MyStat()
-        if path == "/":
-            return os.lstat("." + path)
-        else:
-            # get rid of the first /
-            if path[0] == "/":
-                node = self.doc_root.get(path[1:])
-            else:
-                node = self.doc_root.get(path)
+        node = self.doc_root.get_node_from_path(path)
 
-            if node == None:
-                return -errno.ENOENT
-        
-            #st.st_mode = stat.S_IRUSR + stat.S_IRGRP + stat.S_IROTH
-            st.st_uid = os.getuid()
-            st.st_gid = os.getgid()
-            if isinstance(node, Collection):
-                st.st_mode = stat.S_IFDIR | 0o755
-                #st.st_mode += stat.S_IFDIR + stat.S_IXUSR + stat.S_IXGRP + stat.S_IXOTH
-                st.st_nlink = 2
-            else:
-                st.st_mode = stat.S_IFREG | 0o444
-                #st.st_mode += stat.S_IFREG
-                st.st_nlink = 1
-                st.st_size = 10
-            #mtime = node.metadata["lastModified"]
-            #st.st_atime = mtime
-            #st.st_mtime = mtime
-            #st.st_ctime = mtime
-        
-            logger.debug(st.st_mode)
-            logger.debug(st.st_ino)
-            logger.debug(st.st_dev)
-            logger.debug(st.st_nlink)
-            logger.debug(st.st_uid)
-            logger.debug(st.st_gid)
-            logger.debug(st.st_size)
-            logger.debug(st.st_atime)
-            logger.debug(st.st_mtime)
-            logger.debug(st.st_ctime)
-            return st
+        if node == None:
+            return -errno.ENOENT
+    
+        st.st_mode = stat.S_IRUSR + stat.S_IRGRP + stat.S_IROTH
+        st.st_uid = os.getuid()
+        st.st_gid = os.getgid()
+        if isinstance(node, Collection):
+            st.st_mode += stat.S_IFDIR + stat.S_IXUSR + stat.S_IXGRP + stat.S_IXOTH
+            st.st_nlink = 2
+        else:
+            st.st_mode += stat.S_IFREG
+            st.st_nlink = 1
+            st.st_size = node.size
+    
+        logger.debug(node.metadata)
+        mtime = node.mtime
+        st.st_atime = mtime
+        st.st_mtime = mtime
+        st.st_ctime = mtime
+    
+        logger.debug(st.st_mode)
+        logger.debug(st.st_ino)
+        logger.debug(st.st_dev)
+        logger.debug(st.st_nlink)
+        logger.debug(st.st_uid)
+        logger.debug(st.st_gid)
+        logger.debug(st.st_size)
+        logger.debug(st.st_atime)
+        logger.debug(st.st_mtime)
+        logger.debug(st.st_ctime)
+        return st
 
     def readlink(self, path):
         logger.debug("readlink '" + path +"'")
@@ -133,19 +126,14 @@ class Xochitl(Fuse):
 
     def readdir(self, path, offset):
         logger.debug("readdir '" + path +"'")
-        if path == "/":
-            node=self.doc_root
-            yield fuse.Direntry(".")
-            yield fuse.Direntry("..") 
-            for file in node:
-                logger.debug(file)
-                yield fuse.Direntry(file)
-        else:
-            raise FuseOSError(ENOTDIR)
-
-        #for e in os.listdir("." + path):
-        #    yield fuse.Direntry(e)
-        
+        node = self.doc_root.get_node_from_path(path)
+        if node == None:
+            return -errno.ENOENT
+        yield fuse.Direntry(".")
+        yield fuse.Direntry("..") 
+        for file in node:
+            logger.debug(file)
+            yield fuse.Direntry(file)
 
     def unlink(self, path):
         logger.debug("unlink '" + path +"'")
