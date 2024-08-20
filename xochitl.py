@@ -9,9 +9,7 @@
 
 from __future__ import print_function
 
-import os, sys
-from errno import *
-from stat import *
+import os, sys, stat, errno
 import fcntl
 from threading import Lock
 # pull in some spaghetti to make this stuff work without fuse-py being installed
@@ -49,6 +47,18 @@ def flag2mode(flags):
 
     return m
 
+class MyStat(fuse.Stat):
+    def __init__(self):
+        self.st_mode = 0
+        self.st_ino = 0
+        self.st_dev = 0
+        self.st_nlink = 0
+        self.st_uid = 0
+        self.st_gid = 0
+        self.st_size = 0
+        self.st_atime = 0
+        self.st_mtime = 0
+        self.st_ctime = 0
 
 class Xochitl(Fuse):
 
@@ -75,18 +85,70 @@ class Xochitl(Fuse):
 
     def getattr(self, path):
         logger.debug("getattr '" + path +"'")
-        return os.lstat("." + path)
+        st = MyStat()
+        if path == "/":
+            return os.lstat("." + path)
+        else:
+            # get rid of the first /
+            if path[0] == "/":
+                node = self.doc_root.get(path[1:])
+            else:
+                node = self.doc_root.get(path)
+
+            if node == None:
+                return -errno.ENOENT
+        
+            #st.st_mode = stat.S_IRUSR + stat.S_IRGRP + stat.S_IROTH
+            st.st_uid = os.getuid()
+            st.st_gid = os.getgid()
+            if isinstance(node, Collection):
+                st.st_mode = stat.S_IFDIR | 0o755
+                #st.st_mode += stat.S_IFDIR + stat.S_IXUSR + stat.S_IXGRP + stat.S_IXOTH
+                st.st_nlink = 2
+            else:
+                st.st_mode = stat.S_IFREG | 0o444
+                #st.st_mode += stat.S_IFREG
+                st.st_nlink = 1
+                st.st_size = 10
+            #mtime = node.metadata["lastModified"]
+            #st.st_atime = mtime
+            #st.st_mtime = mtime
+            #st.st_ctime = mtime
+        
+            logger.debug(st.st_mode)
+            logger.debug(st.st_ino)
+            logger.debug(st.st_dev)
+            logger.debug(st.st_nlink)
+            logger.debug(st.st_uid)
+            logger.debug(st.st_gid)
+            logger.debug(st.st_size)
+            logger.debug(st.st_atime)
+            logger.debug(st.st_mtime)
+            logger.debug(st.st_ctime)
+            return st
 
     def readlink(self, path):
+        logger.debug("readlink '" + path +"'")
         return os.readlink("." + path)
 
     def readdir(self, path, offset):
         logger.debug("readdir '" + path +"'")
-        for e in os.listdir("." + path):
-            yield fuse.Direntry(e)
+        if path == "/":
+            node=self.doc_root
+            yield fuse.Direntry(".")
+            yield fuse.Direntry("..") 
+            for file in node:
+                logger.debug(file)
+                yield fuse.Direntry(file)
+        else:
+            raise FuseOSError(ENOTDIR)
+
+        #for e in os.listdir("." + path):
+        #    yield fuse.Direntry(e)
         
 
     def unlink(self, path):
+        logger.debug("unlink '" + path +"'")
         os.unlink("." + path)
 
     def rmdir(self, path):
@@ -94,21 +156,27 @@ class Xochitl(Fuse):
         os.rmdir("." + path)
 
     def symlink(self, path, path1):
+        logger.debug("symlink '" + path +"'")
         os.symlink(path, "." + path1)
 
     def rename(self, path, path1):
+        logger.debug("rename '" + path +"'")
         os.rename("." + path, "." + path1)
 
     def link(self, path, path1):
+        logger.debug("link '" + path +"'")
         os.link("." + path, "." + path1)
 
     def chmod(self, path, mode):
+        logger.debug("chmod '" + path +"'")
         os.chmod("." + path, mode)
 
     def chown(self, path, user, group):
+        logger.debug("chown '" + path +"'")
         os.chown("." + path, user, group)
 
     def truncate(self, path, len):
+        logger.debug("truncate '" + path +"'")
         f = open("." + path, "a")
         f.truncate(len)
         f.close()
@@ -122,6 +190,7 @@ class Xochitl(Fuse):
         os.mkdir("." + path, mode)
 
     def utime(self, path, times):
+        logger.debug("utime" + path)
         os.utime("." + path, times)
 
 #    The following utimens method would do the same as the above utime method.
@@ -132,6 +201,7 @@ class Xochitl(Fuse):
 #      os.utime("." + path, (ts_acc.tv_sec, ts_mod.tv_sec))
 
     def access(self, path, mode):
+        logger.debug("access" + path)
         if not os.access("." + path, mode):
             return -EACCES
 
@@ -186,6 +256,7 @@ class Xochitl(Fuse):
     class XochitlFile(object):
 
         def __init__(self, path, flags, *mode):
+            logger.debug("init File '" + path +"'")
             self.file = os.fdopen(os.open("." + path, flags, *mode),
                                   flag2mode(flags))
             self.fd = self.file.fileno()
@@ -195,6 +266,7 @@ class Xochitl(Fuse):
                 self.iolock = Lock()
 
         def read(self, length, offset):
+            logger.debug("read '" + self.file.name + "'")
             if self.iolock:
                 self.iolock.acquire()
                 try:
@@ -206,6 +278,7 @@ class Xochitl(Fuse):
                 return os.pread(self.fd, length, offset)
 
         def write(self, buf, offset):
+            logger.debug("write '" + self.file.name + "'")
             if self.iolock:
                 self.iolock.acquire()
                 try:
@@ -218,13 +291,16 @@ class Xochitl(Fuse):
                 return os.pwrite(self.fd, buf, offset)
 
         def release(self, flags):
+            logger.debug("release '" + self.file.name + "'")
             self.file.close()
 
         def _fflush(self):
+            logger.debug("_flush '" + self.file.name + "'")
             if 'w' in self.file.mode or 'a' in self.file.mode:
                 self.file.flush()
 
         def fsync(self, isfsyncfile):
+            logger.debug("fsync '" + self.file.name + "'")
             self._fflush()
             if isfsyncfile and hasattr(os, 'fdatasync'):
                 os.fdatasync(self.fd)
@@ -232,6 +308,7 @@ class Xochitl(Fuse):
                 os.fsync(self.fd)
 
         def flush(self):
+            logger.debug("flush '" + self.file.name + "'")
             self._fflush()
             # cf. xmp_flush() in fusexmp_fh.c
             os.close(os.dup(self.fd))
@@ -241,9 +318,11 @@ class Xochitl(Fuse):
             return os.fstat(self.fd)
 
         def ftruncate(self, len):
+            logger.debug("ftruncate '" + self.file.name + "'")
             self.file.truncate(len)
 
         def lock(self, cmd, owner, **kw):
+            logger.debug("lock '" + self.file.name + "'")
             # The code here is much rather just a demonstration of the locking
             # API than something which actually was seen to be useful.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from documents import DocumentRoot
+from documents import DocumentRoot, Collection
 
 root=DocumentRoot("/home/chris/local/reMarkable-backup/")
 
@@ -14,6 +14,14 @@ for s in root.children:
     print(n.metadata["visibleName"] + " ", n.size)
     print(n.metadata)
     print(n)
+
+node = root
+if isinstance(node, Collection):
+    print (".")
+    print ("..")
+    for s in node:
+        print(s)
+        
 
 """print(root)"""
 
