@@ -386,11 +386,11 @@ class Document(Node):
         if self.file_type() == "":
             raise NoContents()
         self.file_name = self.name + "." + self.file_type()
-        """ HK - get size of ??? """
-        """ original script tries to stat xxx.notebok which doesn't exist
-        self._size = os.stat(self.id + "." + self.file_type()).st_size
-        TODO: """
-        self._size = 10
+        if self.file_type() == "notebook":
+            #self._size = self._get_notebook_size()
+            self._size = sum(os.path.getsize(os.path.join(self.id, f)) for f in os.listdir(self.id) if os.path.isfile(os.path.join(self.id, f)))
+        else:
+            self._size = os.stat(self.id + "." + self.file_type()).st_size
 
     def file_type(self):
         """Return the type of file."""
@@ -415,6 +415,13 @@ class Document(Node):
     @staticmethod
     def node_type():
         return "DocumentType"
+
+ #   def _get_notebook_size(self):
+ #       size = 0
+ #       for f in os.listdir(self.id):
+ #           #if os.path.isfile(f):
+ #           size += os.stat(os.path.join(self.id, f)).st_size
+ #       return size
 
 class NewDocument(Node):
     """A newly-created document, which (unlike an object of class Document) can
