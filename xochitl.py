@@ -191,8 +191,10 @@ class Xochitl(Fuse):
 
     def access(self, path, mode):
         logger.debug("access" + path)
-        if not os.access("." + path, mode):
-            return -EACCES
+        node = self.doc_root.get_node_from_path(path)
+        # asume that if node exist we have access
+        if node == None:
+            return -errno.EACCES
 
 #    This is how we could add stub extended attribute handlers...
 #    (We can't have ones which aptly delegate requests to the underlying fs
