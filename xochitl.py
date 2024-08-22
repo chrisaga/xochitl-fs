@@ -121,9 +121,10 @@ class Xochitl(Fuse):
         logger.debug(st.st_ctime)
         return st
 
-    def readlink(self, path):
-        logger.debug("readlink '" + path +"'")
-        return os.readlink("." + path)
+#   I'm pretty sure symbolic links are not implemented in reMarkable docs
+#    def readlink(self, path):
+#        logger.debug("readlink '" + path +"'")
+#        return os.readlink("." + path)
 
     def readdir(self, path, offset):
         logger.debug("readdir '" + path +"'")
@@ -137,8 +138,12 @@ class Xochitl(Fuse):
             yield fuse.Direntry(file)
 
     def unlink(self, path):
+        """Set a document 'deleted' (data are still there) """
         logger.debug("unlink '" + path +"'")
-        os.unlink("." + path)
+        node = self.node(path)
+        if isinstance(node, Collection):
+            return -errno.EISDIR
+        node.delete()
 
     def rmdir(self, path):
         logger.debug("rmddir" + path)
@@ -178,17 +183,20 @@ class Xochitl(Fuse):
             traceback.print_exc()
             return -errno.EIO
 
-    def link(self, path, path1):
-        logger.debug("link '" + path +"'")
-        os.link("." + path, "." + path1)
+#   I'm pretty sure hard links are not implemented in reMarkable docs
+#    def link(self, path, path1):
+#        logger.debug("link '" + path +"'")
+#        os.link("." + path, "." + path1)
 
-    def chmod(self, path, mode):
-        logger.debug("chmod '" + path +"'")
-        os.chmod("." + path, mode)
+#   No such thing as mode
+#    def chmod(self, path, mode):
+#        logger.debug("chmod '" + path +"'")
+#        os.chmod("." + path, mode)
 
-    def chown(self, path, user, group):
-        logger.debug("chown '" + path +"'")
-        os.chown("." + path, user, group)
+#   No document owner
+#    def chown(self, path, user, group):
+#        logger.debug("chown '" + path +"'")
+#        os.chown("." + path, user, group)
 
     def truncate(self, path, len):
         logger.debug("truncate '" + path +"'")
