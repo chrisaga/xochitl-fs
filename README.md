@@ -1,4 +1,4 @@
-# Annother FUSE filesystem wrapper for reMarkable documents (Work in progress)
+# Another FUSE filesystem wrapper for reMarkable documents (Work in progress)
 
 ## Context and motivation
 
