@@ -87,7 +87,7 @@ class Xochitl(Fuse):
     def getattr(self, path):
         logger.debug("getattr '" + path +"'")
         st = MyStat()
-        node = self.doc_root.get_node_from_path(path)
+        node = self.documents.get_node_from_path(path)
 
         if node == None:
             return -errno.ENOENT
@@ -127,7 +127,7 @@ class Xochitl(Fuse):
 
     def readdir(self, path, offset):
         logger.debug("readdir '" + path +"'")
-        node = self.doc_root.get_node_from_path(path)
+        node = self.documents.get_node_from_path(path)
         if node == None:
             return -errno.ENOENT
         yield fuse.Direntry(".")
@@ -144,16 +144,17 @@ class Xochitl(Fuse):
         logger.debug("rmddir" + path)
         os.rmdir("." + path)
 
-    def symlink(self, path, path1):
-        logger.debug("symlink '" + path +"'")
-        os.symlink(path, "." + path1)
+#   I'm pretty sure symbolic links are not implemented in reMarkable docs
+#    def symlink(self, path, path1):
+#        logger.debug("symlink '" + path +"'")
+#        os.symlink(path, "." + path1)
 
     def rename(self, old, new):
         """Rename or move"""
         logger.debug("rename '" + old +"' -> '" + new + "'")
-        old_node = self.doc_root.get_node_from_path(old)
-        new_node = self.doc_root.get_node_from_path(new)
-        new_parent = self.doc_root.get_node_from_path(os.path.dirname(new))
+        old_node = self.documents.get_node_from_path(old)
+        new_node = self.documents.get_node_from_path(new)
+        new_parent = self.documents.get_node_from_path(os.path.dirname(new))
         new_file = os.path.basename(new)
 
         try:
@@ -216,7 +217,7 @@ class Xochitl(Fuse):
 
     def access(self, path, mode):
         logger.debug("access" + path)
-        node = self.doc_root.get_node_from_path(path)
+        node = self.documents.get_node_from_path(path)
         # asume that if node exist we have access
         if node == None:
             return -errno.EACCES
@@ -266,8 +267,14 @@ class Xochitl(Fuse):
     def fsinit(self):
         logger.info("initializing DocumentRoot")
         logger.debug("fsinit '" + self.root +"'")
-        self.doc_root = DocumentRoot(self.root)
+        self.documents = DocumentRoot(self.root)
         os.chdir(self.root)
+
+    def node(self, path):
+        """Get node object from fuse path"""
+        #TODO: see Remarkable.node() in original remarkabe-fs/fs.py
+        #      figure-out the FuseOSError from fusepy
+        return self.documents.get_node_from_path(path)
 
     class XochitlFile(object):
 
