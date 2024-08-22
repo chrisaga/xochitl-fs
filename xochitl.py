@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-#    Copyright (C) 2001  Jeff Epler  <jepler@unpythonic.dhs.org>
-#    Copyright (C) 2006  Csaba Henk  <csaba.henk@creo.hu>
+#    reMarkable (xochitl) document FUSE wrapper
+#
+#    This is a work in progress based on the Xmp example provided by python-fuse#    Only a few methods actually work.
 #
 #    This program can be distributed under the terms of the GNU LGPL.
 #    See the file COPYING.

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+#    Test the documents module
+
 from documents import DocumentRoot, Collection
 
 root=DocumentRoot("/home/chris/local/reMarkable-backup/")
