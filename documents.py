@@ -6,12 +6,15 @@ This one use a local backup of the reMarkable documents.
 
 Minimal example:
 
->>> from remarkable_fs.connection import connect
->>> from remarkable_fs.documents import DocumentRoot
+>>> from documents import DocumentRoot
 >>>
->>> with connect() as conn:
->>>     root = DocumentRoot(conn)
->>>     print root["foo.pdf"].read(0, 4096) # prints first 4KB of foo.pdf"""
+>>> root = DocumentRoot("<path where xotchil files are>")
+>>> for s in root.children:
+...     n=root.get(s)
+...     print(n.metadata["visibleName"] + " ", n.size)
+...     print(n.metadata)
+... 
+"""
 
 import fnmatch
 import json
