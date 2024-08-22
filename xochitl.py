@@ -148,9 +148,34 @@ class Xochitl(Fuse):
         logger.debug("symlink '" + path +"'")
         os.symlink(path, "." + path1)
 
-    def rename(self, path, path1):
-        logger.debug("rename '" + path +"'")
-        os.rename("." + path, "." + path1)
+    def rename(self, old, new):
+        """Rename or move"""
+        logger.debug("rename '" + old +"' -> '" + new + "'")
+        old_node = self.doc_root.get_node_from_path(old)
+        new_node = self.doc_root.get_node_from_path(new)
+        new_parent = self.doc_root.get_node_from_path(os.path.dirname(new))
+        new_file = os.path.basename(new)
+
+        try:
+            if new_node is None:
+                # It's a move with a filename
+                logger.debug("It's a move with a filename")
+                old_node.rename(new_parent, new_file)
+            elif isinstance(new_node, Collection):
+                # It's a move into a directory
+                logger.debug("It's a move into a directory")
+                old_node.rename(new_node, old_node.name)
+            else:
+                # It's overwriting a file.
+                # Don't allow this because it might be an editor doing
+                # a rename to overwrite the file with a new version.
+                # This would lose all handwritten notes associated with the file.
+                logging.debug("It's overwriting a file.")
+                return -errno.EEXIST
+        except IOError:
+            # File conversion error
+            traceback.print_exc()
+            return -errno.EIO
 
     def link(self, path, path1):
         logger.debug("link '" + path +"'")
