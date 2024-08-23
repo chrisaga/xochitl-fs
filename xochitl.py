@@ -127,6 +127,7 @@ class Xochitl(Fuse):
 #        return os.readlink("." + path)
 
     def readdir(self, path, offset):
+        """Read directory entries"""
         logger.debug("readdir '" + path +"'")
         node = self.documents.get_node_from_path(path)
         if node == None:
@@ -146,8 +147,15 @@ class Xochitl(Fuse):
         node.delete()
 
     def rmdir(self, path):
+        """Remove an empty directory"""
         logger.debug("rmddir" + path)
-        os.rmdir("." + path)
+        node = self.node(path)
+        if not isinstance(node, Collection):
+            return -errno.ENOTDIR
+        if len(node.items()) > 0:
+            return -errno.ENOTEMPTY
+        node.delete()
+        #os.rmdir("." + path)
 
 #   I'm pretty sure symbolic links are not implemented in reMarkable docs
 #    def symlink(self, path, path1):
@@ -209,8 +217,13 @@ class Xochitl(Fuse):
         os.mknod("." + path, mode, dev)
 
     def mkdir(self, path, mode):
+        """Make an empty directory"""
         logger.debug("mkdir" + path)
-        os.mkdir("." + path, mode)
+        parent, name = self.parent(path)
+        if name in parent:
+            return -errno.EEXIST
+        parent.new_collection(name)
+        #os.mkdir("." + path, mode)
 
     def utime(self, path, times):
         logger.debug("utime" + path)
@@ -283,6 +296,26 @@ class Xochitl(Fuse):
         #TODO: see Remarkable.node() in original remarkabe-fs/fs.py
         #      figure-out the FuseOSError from fusepy
         return self.documents.get_node_from_path(path)
+
+    def parent(self, path):
+        """Find the parent node of a path in the filesystem. The path does not
+        have to exist but its parent directory should. Generally used when
+        creating a new file.
+
+        Returns (parent node, basename). Raises ENOENT if the parent directory
+        does not exist and EBUSY if the path is the root directory."""
+        
+        path = os.path.normpath(path)
+        dir, file = os.path.split(path)
+
+        if file == '':
+            # Root directory - cannot be moved/created/deleted
+            #TODO:
+            #raise FuseOSError(EBUSY)
+            return (None, '')
+
+        return (self.node(dir), file)
+
 
     class XochitlFile(object):
 
