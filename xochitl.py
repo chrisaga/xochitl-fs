@@ -207,14 +207,24 @@ class Xochitl(Fuse):
 #        os.chown("." + path, user, group)
 
     def truncate(self, path, len):
+        """Truncate a file to the specified length"""
+        """TODO: investigate and test"""
         logger.debug("truncate '" + path +"'")
-        f = open("." + path, "a")
-        f.truncate(len)
-        f.close()
+        node = self.node(path)
+        # Don't allow overwriting existing files
+        # (changing this needs more code in documents.py)
+        if hasattr(node, "truncate"):
+            node.truncate(length)
+        else:
+            return -errno.EPERM
+        #f = open("." + path, "a")
+        #f.truncate(len)
+        #f.close()
 
-    def mknod(self, path, mode, dev):
-        logger.debug("mknod" + path)
-        os.mknod("." + path, mode, dev)
+#   Doesn't seem useful in this context
+#    def mknod(self, path, mode, dev):
+#        logger.debug("mknod" + path)
+#        os.mknod("." + path, mode, dev)
 
     def mkdir(self, path, mode):
         """Make an empty directory"""
@@ -225,9 +235,13 @@ class Xochitl(Fuse):
         parent.new_collection(name)
         #os.mkdir("." + path, mode)
 
+#   TODO: was not implemented in original remarkable-fs
+#         although it makes sense in the reMarkable context
     def utime(self, path, times):
+        """Set the access and modified times of the file specified by path."""
         logger.debug("utime" + path)
-        os.utime("." + path, times)
+        return -errno.ENOSYS
+        #os.utime("." + path, times)
 
 #    The following utimens method would do the same as the above utime method.
 #    We can't make it better though as the Python stdlib doesn't know of
@@ -237,9 +251,11 @@ class Xochitl(Fuse):
 #      os.utime("." + path, (ts_acc.tv_sec, ts_mod.tv_sec))
 
     def access(self, path, mode):
+        """Check access to the node data on disk"""
         logger.debug("access" + path)
         node = self.documents.get_node_from_path(path)
         # asume that if node exist we have access
+        # documents.py already accessed it
         if node == None:
             return -errno.EACCES
 
@@ -283,9 +299,13 @@ class Xochitl(Fuse):
         """
 
         logger.debug("statfs '" + self.root + "'")
+        # Just return the underlying real filesystem
+        # remarkable-fs was making arbitrary data
+        # maybe there is something smarter to do
         return os.statvfs(".")
 
     def fsinit(self):
+        """Initialize the xochitl filesystem from the data files"""
         logger.info("initializing DocumentRoot")
         logger.debug("fsinit '" + self.root +"'")
         self.documents = DocumentRoot(self.root)
@@ -320,17 +340,33 @@ class Xochitl(Fuse):
     class XochitlFile(object):
 
         def __init__(self, path, flags, *mode):
+            """Initialize a custom file object"""
             logger.debug("init File '" + path +"'")
-            self.file = os.fdopen(os.open("." + path, flags, *mode),
+            logger.debug(self.__dict__)
+            logger.debug(flags)
+            logger.debug(mode)
+
+            node = self.fs.node(path)
+            logger.debug(node)
+            if node != None and node.file_type() != "notebook":
+                #We have an underlying file we can read
+                #TODO: how to get file annotations ?
+                #TODO: see Document.file()
+                file_path = "./" + node.id + "." + node.file_type()
+                logger.debug(file_path)
+                self.file = os.fdopen(os.open(file_path, flags, *mode),
                                   flag2mode(flags))
-            self.fd = self.file.fileno()
-            if hasattr(os, 'pread'):
-                self.iolock = None
-            else:
-                self.iolock = Lock()
+                self.fd = self.file.fileno()
+                if hasattr(os, 'pread'):
+                    self.iolock = None
+                else:
+                    self.iolock = Lock()
 
         def read(self, length, offset):
-            logger.debug("read '" + self.file.name + "'")
+            #logger.debug("read '" + self.file.name + "'")
+            #we don't have a file.name, probably due to fdopen()
+            #TODO: investigate
+            logger.debug("read")
             if self.iolock:
                 self.iolock.acquire()
                 try:
@@ -342,7 +378,7 @@ class Xochitl(Fuse):
                 return os.pread(self.fd, length, offset)
 
         def write(self, buf, offset):
-            logger.debug("write '" + self.file.name + "'")
+            logger.debug("write")
             if self.iolock:
                 self.iolock.acquire()
                 try:
@@ -355,16 +391,16 @@ class Xochitl(Fuse):
                 return os.pwrite(self.fd, buf, offset)
 
         def release(self, flags):
-            logger.debug("release '" + self.file.name + "'")
+            logger.debug("release")
             self.file.close()
 
         def _fflush(self):
-            logger.debug("_flush '" + self.file.name + "'")
+            logger.debug("_fflush")
             if 'w' in self.file.mode or 'a' in self.file.mode:
                 self.file.flush()
 
         def fsync(self, isfsyncfile):
-            logger.debug("fsync '" + self.file.name + "'")
+            logger.debug("fsync")
             self._fflush()
             if isfsyncfile and hasattr(os, 'fdatasync'):
                 os.fdatasync(self.fd)
@@ -372,21 +408,21 @@ class Xochitl(Fuse):
                 os.fsync(self.fd)
 
         def flush(self):
-            logger.debug("flush '" + self.file.name + "'")
+            logger.debug("flush")
             self._fflush()
             # cf. xmp_flush() in fusexmp_fh.c
             os.close(os.dup(self.fd))
 
         def fgetattr(self):
-            logger.debug("fgetattr '" + self.file.name + "'")
+            logger.debug("fgetattr")
             return os.fstat(self.fd)
 
         def ftruncate(self, len):
-            logger.debug("ftruncate '" + self.file.name + "'")
+            logger.debug("ftruncate")
             self.file.truncate(len)
 
         def lock(self, cmd, owner, **kw):
-            logger.debug("lock '" + self.file.name + "'")
+            logger.debug("lock")
             # The code here is much rather just a demonstration of the locking
             # API than something which actually was seen to be useful.
 
@@ -430,6 +466,7 @@ class Xochitl(Fuse):
     def main(self, *a, **kw):
         """ Starting the server """
         self.file_class = self.XochitlFile
+        self.file_class.fs = self
 
         return Fuse.main(self, *a, **kw)
 
