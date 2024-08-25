@@ -24,6 +24,9 @@ You can mount a reMarkable documents backup directory and browse it as a documen
 ### To Do
 
 * Create and write "plain files" (such as pdf) to xochitl filesystem
+	- Create a new node (done)
+	- Create a temporary file for data (done)
+	- Actually save node with all the metadata files by calling node.save() from flush() call
 * Read notebook file in a single data structure which can be latter used to create a duplicate in the xochitl filesystem (i.e. implement a true copy/paste or cp command)
 * Create and write new notebook files from a previously read data structure
 
