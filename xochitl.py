@@ -341,26 +341,55 @@ class Xochitl(Fuse):
 
         def __init__(self, path, flags, *mode):
             """Initialize a custom file object"""
-            logger.debug("init File '" + path +"'")
-            logger.debug(self.__dict__)
+            logger.debug("__init__ File '" + path +"'")
             logger.debug(flags)
             logger.debug(mode)
 
             node = self.fs.node(path)
-            logger.debug(node)
-            if node != None and node.file_type() != "notebook":
-                #We have an underlying file we can read
+            if node == None:
+                logger.debug("Creating '" + path + "'")
+                parent, name = self.fs.parent(path)
+                
+                # Don't allow overwriting existing files, for paranoia
+                if name in parent:
+                    raise OSError(errno.EEXIST, os.strerror(errno.EEXIST), path)
+
+                node = parent.new_document(name)
+                #logger.debug(type(node).__name__)
+                file_path = "./." + node.id
+            
+            # Don't allow overwriting existing files
+            # (changing this needs more code in documents.py)
+            #if flags & os.O_WRONLY or flags & os.O_RDWR and not isinstance(node, NewDocument):
+            elif flags & os.O_WRONLY or flags & os.O_RDWR:
+                logger.debug(os.strerror(errno.EPERM))
+                raise OSError(errno.EPERM, os.strerror(errno.EPERM), path)
+
+            elif node.file_type() != "notebook":
+                #We have an underlying file we can read or write
                 #TODO: how to get file annotations ?
                 #TODO: see Document.file()
                 file_path = "./" + node.id + "." + node.file_type()
-                logger.debug(file_path)
-                self.file = os.fdopen(os.open(file_path, flags, *mode),
+
+            logger.debug("Open underlying file")
+            logger.debug(file_path)
+            self.file = os.fdopen(os.open(file_path, flags, *mode),
                                   flag2mode(flags))
-                self.fd = self.file.fileno()
-                if hasattr(os, 'pread'):
-                    self.iolock = None
-                else:
-                    self.iolock = Lock()
+            self.fd = self.file.fileno()
+            if hasattr(os, 'pread'):
+                self.iolock = None
+            else:
+                self.iolock = Lock()
+
+        def open(self, path, flags):
+            """Do we have to implement this since it's done in __init__()"""
+            logger.debug("open '" + path + "'")
+            return self
+
+        def create(self, path, flags):
+            """Do we have to implement this since it could be done in __init__()"""
+            logger.debug("create '" + path + "'")
+            return -errno.EPERM
 
         def read(self, length, offset):
             #logger.debug("read '" + self.file.name + "'")
@@ -391,6 +420,7 @@ class Xochitl(Fuse):
                 return os.pwrite(self.fd, buf, offset)
 
         def release(self, flags):
+            """File is closed and no more accessible"""
             logger.debug("release")
             self.file.close()
 
@@ -411,6 +441,7 @@ class Xochitl(Fuse):
             logger.debug("flush")
             self._fflush()
             # cf. xmp_flush() in fusexmp_fh.c
+            # TODO: something to do with the fdopen
             os.close(os.dup(self.fd))
 
         def fgetattr(self):
