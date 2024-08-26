@@ -23,7 +23,7 @@ from fuse import Fuse
 
 from documents import Collection, Document, NewDocument, DocumentRoot
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("xochitl")
 logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler('/tmp/xochitl.log')
 fh.setLevel(logging.DEBUG)
@@ -345,8 +345,8 @@ class Xochitl(Fuse):
             logger.debug(flags)
             logger.debug(mode)
 
-            node = self.fs.node(path)
-            if node == None:
+            self.node = self.fs.node(path)
+            if self.node == None:
                 logger.debug("Creating '" + path + "'")
                 parent, name = self.fs.parent(path)
                 
@@ -354,9 +354,9 @@ class Xochitl(Fuse):
                 if name in parent:
                     raise OSError(errno.EEXIST, os.strerror(errno.EEXIST), path)
 
-                node = parent.new_document(name)
+                self.node = parent.new_document(name)
                 #logger.debug(type(node).__name__)
-                file_path = "./." + node.id
+                file_path = "./." + self.node.id
             
             # Don't allow overwriting existing files
             # (changing this needs more code in documents.py)
@@ -365,11 +365,11 @@ class Xochitl(Fuse):
                 logger.debug(os.strerror(errno.EPERM))
                 raise OSError(errno.EPERM, os.strerror(errno.EPERM), path)
 
-            elif node.file_type() != "notebook":
+            elif self.node.file_type() != "notebook":
                 #We have an underlying file we can read or write
                 #TODO: how to get file annotations ?
                 #TODO: see Document.file()
-                file_path = "./" + node.id + "." + node.file_type()
+                file_path = "./" + self.node.id + "." + self.node.file_type()
 
             logger.debug("Open underlying file")
             logger.debug(file_path)
@@ -407,17 +407,24 @@ class Xochitl(Fuse):
                 return os.pread(self.fd, length, offset)
 
         def write(self, buf, offset):
+            """Write in a xochitl node.
+               nothin on the underliying filesystem untill node.save()"""
             logger.debug("write")
-            if self.iolock:
-                self.iolock.acquire()
-                try:
-                    self.file.seek(offset)
-                    self.file.write(buf)
-                    return len(buf)
-                finally:
-                    self.iolock.release()
-            else:
-                return os.pwrite(self.fd, buf, offset)
+            #if self.iolock:
+            #    self.iolock.acquire()
+            #    try:
+            #        self.file.seek(offset)
+            #        self.file.write(buf)
+            #        return len(buf)
+            #    finally:
+            #        self.iolock.release()
+            #else:
+            #    return os.pwrite(self.fd, buf, offset)
+            if isinstance(self.node, Collection):
+                raise FuseOSError(EISDIR)
+            self.node.write(offset, buf)
+        
+            return len(buf)
 
         def release(self, flags):
             """File is closed and no more accessible"""
@@ -425,9 +432,16 @@ class Xochitl(Fuse):
             self.file.close()
 
         def _fflush(self):
-            logger.debug("_fflush")
+            logger.debug("_fflush '" + self.node.name + "' ("
+                    + self.file.mode + ")")
             if 'w' in self.file.mode or 'a' in self.file.mode:
                 self.file.flush()
+                try:
+                    self.node.save()
+                except IOError:
+                    # File conversion error
+                    traceback.print_exc()
+                    raise OSError(errno.EIO, os.strerror(errno.EIO),node.name)
 
         def fsync(self, isfsyncfile):
             logger.debug("fsync")

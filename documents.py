@@ -28,6 +28,9 @@ from uuid import uuid4
 from progress.bar import Bar
 from io import BytesIO
 """import remarkable_fs.rM2svg"""
+import logging
+logger = logging.getLogger("xochitl")
+
 
 try:
     from json import JSONDecodeError
@@ -458,10 +461,14 @@ class NewDocument(Node):
         self.buf.truncate(length)
     
     def save(self):
+        logger.debug("save")
         if not self.file_name.startswith(".") and not self.deleted:
             self.really_save()
 
     def really_save(self):
+        logger.debug("really_save '" + self.name + "'")
+        logger.debug(self.modified)
+        logger.debug(len(self.buf.getvalue()))
         # Don't save zero-size files - Finder creates them
         if self.modified and len(self.buf.getvalue()) > 0:
             try:
@@ -491,8 +498,10 @@ class NewDocument(Node):
                     "m33": 1
                 }
             }
+            logger.debug("write '" + self.id + ".content'")
             self.root.write_content(self.id, content)
             self.root.write_file(self.id + "." + filetype, data)
+            logger.debug("write '" + self.id + "." + filetype +"'")
             super(NewDocument, self).save()
 
     def rename(self, parent, file_name):
@@ -545,25 +554,32 @@ def convert_document(data):
 
     Raises IOError if the file could not be converted."""
 
+    logger.debug("convert_document")
     convert = None
     if data.startswith(b"%PDF"):
         filetype = "pdf"
+        logger.debug(filetype)
     elif data.startswith(b"AT&TFORM"):
         filetype = "pdf"
         suffix = ".djvu"
         convert = "ddjvu --format=pdf"
+        logger.debug(filetype + "/" + suffix + "/" + convert)
     elif data.startswith(b"%!PS-Adobe"):
         filetype = "pdf"
         suffix = ".ps"
         convert = "ps2pdf"
+        logger.debug(filetype + "/" + suffix + "/" + convert)
     elif data.startswith(b"PK"):
         filetype = "epub"
+        logger.debug(filetype)
     else:
         raise IOError("Only PDF, epub, djvu and ps format files supported")
 
     if convert is not None:
         infile = NamedTemporaryFile(suffix = suffix)
         outfile = NamedTemporaryFile(suffix = ".pdf")
+        logger.debug("infile = " + infile)
+        logger.debug("outfile = " + outfile)
         infile.write(data)
         infile.flush()
         res = os.system("%s %s %s" % (convert, infile.name, outfile.name))
