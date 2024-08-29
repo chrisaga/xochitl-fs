@@ -356,7 +356,6 @@ class Xochitl(Fuse):
                             path)
 
                 self.node = parent.new_document(name)
-                #logger.debug(type(node).__name__)
                 file_path = "./." + self.node.id
             
             # Don't allow overwriting existing files
@@ -369,18 +368,18 @@ class Xochitl(Fuse):
             elif self.node.file_type() != "notebook":
                 #We have an underlying file we can read or write
                 #TODO: how to get file annotations ?
-                #TODO: see Document.file()
                 file_path = "./" + self.node.id + "." + self.node.file_type()
 
             logger.debug("Open underlying file")
             logger.debug(file_path)
-            self.file = os.fdopen(os.open(file_path, flags, *mode),
-                                  flag2mode(flags))
-            self.fd = self.file.fileno()
-            if hasattr(os, 'pread'):
-                self.iolock = None
-            else:
-                self.iolock = Lock()
+            self.node.file = open(file_path, flag2mode(flags))
+            #self.file = os.fdopen(os.open(file_path, flags, *mode),
+            #                      flag2mode(flags))
+            self.fd = self.node.file.fileno()
+            #if hasattr(os, 'pread'):
+            #    self.iolock = None
+            #else:
+            #    self.iolock = Lock()
 
         def open(self, path, flags):
             """Do we have to implement this since it's done in __init__()"""
@@ -436,13 +435,14 @@ class Xochitl(Fuse):
         def release(self, flags):
             """File is closed and no more accessible"""
             logger.debug("release")
-            self.file.close()
+            self.node.file.close()
+            self.node.file = None
 
         def _fflush(self):
             logger.debug("_fflush '" + self.node.name + "' ("
-                    + self.file.mode + ")")
-            if 'w' in self.file.mode or 'a' in self.file.mode:
-                self.file.flush()
+                    + self.node.file.mode + ")")
+            if 'w' in self.node.file.mode or 'a' in self.node.file.mode:
+                self.node.file.flush()
                 try:
                     self.node.save()
                 except IOError:
@@ -464,7 +464,7 @@ class Xochitl(Fuse):
             self._fflush()
             # cf. xmp_flush() in fusexmp_fh.c
             # TODO: something to do with the fdopen
-            os.close(os.dup(self.fd))
+            #os.close(os.dup(self.fd))
 
         def fgetattr(self):
             logger.debug("fgetattr")
@@ -472,10 +472,10 @@ class Xochitl(Fuse):
 
         def ftruncate(self, len):
             logger.debug("ftruncate")
-            self.file.truncate(len)
+            self.node.file.truncate(len)
 
-        def lock(self, cmd, owner, **kw):
-            logger.debug("lock")
+        #def lock(self, cmd, owner, **kw):
+        #    logger.debug("lock")
             # The code here is much rather just a demonstration of the locking
             # API than something which actually was seen to be useful.
 
@@ -500,20 +500,20 @@ class Xochitl(Fuse):
 
             # Convert fcntl-ish lock parameters to Python's weird
             # lockf(3)/flock(2) medley locking API...
-            op = { fcntl.F_UNLCK : fcntl.LOCK_UN,
-                   fcntl.F_RDLCK : fcntl.LOCK_SH,
-                   fcntl.F_WRLCK : fcntl.LOCK_EX }[kw['l_type']]
-            if cmd == fcntl.F_GETLK:
-                return -EOPNOTSUPP
-            elif cmd == fcntl.F_SETLK:
-                if op != fcntl.LOCK_UN:
-                    op |= fcntl.LOCK_NB
-            elif cmd == fcntl.F_SETLKW:
-                pass
-            else:
-                return -EINVAL
+        #    op = { fcntl.F_UNLCK : fcntl.LOCK_UN,
+        #           fcntl.F_RDLCK : fcntl.LOCK_SH,
+        #           fcntl.F_WRLCK : fcntl.LOCK_EX }[kw['l_type']]
+        #    if cmd == fcntl.F_GETLK:
+        #        return -EOPNOTSUPP
+        #    elif cmd == fcntl.F_SETLK:
+        #        if op != fcntl.LOCK_UN:
+        #            op |= fcntl.LOCK_NB
+        #    elif cmd == fcntl.F_SETLKW:
+        #        pass
+        #    else:
+        #        return -EINVAL
 
-            fcntl.lockf(self.fd, op, kw['l_start'], kw['l_len'])
+        #    fcntl.lockf(self.fd, op, kw['l_start'], kw['l_len'])
 
 
     def main(self, *a, **kw):
