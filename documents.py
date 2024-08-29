@@ -24,7 +24,7 @@ import itertools
 import traceback
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
-"""from lazy import lazy"""
+from lazy import lazy
 from progress.bar import Bar
 from io import BytesIO
 """import remarkable_fs.rM2svg"""
@@ -399,12 +399,12 @@ class Document(Node):
         """Return the type of file."""
         return self.content["fileType"]
 
-    """ @lazy"""
-    def file(self):
-        """A file handle to the file contents itself."""
-        ext = self.file_type()
-        """ HK """
-        return open(self.id + "." + ext, "rb")
+    #@lazy
+    #def file(self):
+    #    """A file handle to the file contents itself."""
+    #    ext = self.file_type()
+    #    """ HK """
+    #    return open(self.id + "." + ext, "rb")
 
     @property
     def size(self):

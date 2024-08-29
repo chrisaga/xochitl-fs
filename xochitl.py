@@ -352,7 +352,8 @@ class Xochitl(Fuse):
                 
                 # Don't allow overwriting existing files, for paranoia
                 if name in parent:
-                    raise OSError(errno.EEXIST, os.strerror(errno.EEXIST), path)
+                    raise OSError(errno.EEXIST, os.strerror(errno.EEXIST),
+                            path)
 
                 self.node = parent.new_document(name)
                 #logger.debug(type(node).__name__)
@@ -396,15 +397,20 @@ class Xochitl(Fuse):
             #we don't have a file.name, probably due to fdopen()
             #TODO: investigate
             logger.debug("read")
-            if self.iolock:
-                self.iolock.acquire()
-                try:
-                    self.file.seek(offset)
-                    return self.file.read(length)
-                finally:
-                    self.iolock.release()
-            else:
-                return os.pread(self.fd, length, offset)
+            #if self.iolock:
+            #    self.iolock.acquire()
+            #    try:
+            #        self.file.seek(offset)
+            #        return self.file.read(length)
+            #    finally:
+            #        self.iolock.release()
+            #else:
+            #    return os.pread(self.fd, length, offset)
+            if isinstance(self.node, Collection):
+                raise OSError(errno.EISDIR, os.strerror(errno.EIO),
+                            self.node.name)
+                
+            return self.node.read(offset, length) 
 
         def write(self, buf, offset):
             """Write in a xochitl node.
@@ -421,7 +427,8 @@ class Xochitl(Fuse):
             #else:
             #    return os.pwrite(self.fd, buf, offset)
             if isinstance(self.node, Collection):
-                raise FuseOSError(EISDIR)
+                raise OSError(errno.EISDIR, os.strerror(errno.EIO),
+                            self.node.name)
             self.node.write(offset, buf)
         
             return len(buf)
@@ -441,7 +448,8 @@ class Xochitl(Fuse):
                 except IOError:
                     # File conversion error
                     traceback.print_exc()
-                    raise OSError(errno.EIO, os.strerror(errno.EIO),node.name)
+                    raise OSError(errno.EIO, os.strerror(errno.EIO),
+                            self.node.name)
 
         def fsync(self, isfsyncfile):
             logger.debug("fsync")

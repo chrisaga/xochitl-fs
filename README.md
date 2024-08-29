@@ -24,11 +24,12 @@ You can mount a reMarkable documents backup directory and browse it as a documen
 	- Create a new node (done)
 	- Create a temporary file for data (done but not useful any more)
 	- Actually save node with all the metadata files by calling node.save() from flush() call (done)
+* Use node.read() to read node data.
 
 ### To Do
 
+* Transfer the `.file` object from the `XochitlFile` object to the `XochitlFile.node` so it can be acceded from the documents module (`node.read()`) and we can get rid of the "@lazy property" (then the `lazy` module dependency)
 * Figure-out the fd management without temporary file
-* Use node.read() to read node data.
 * Check if something is to be done with `NewNodes` to make them regular `Nodes` after they have been saved.
 * Read notebook file in a single data structure which can be latter used to create a duplicate in the xochitl filesystem (i.e. implement a true copy/paste or cp command)
 * Create and write new notebook files from a previously read data structure
@@ -45,3 +46,16 @@ You can mount a reMarkable documents backup directory and browse it as a documen
 ### Might Do
 * Auto convert notebook files to the latest version when written
 * Dolphin "services" to implement useful menus like convert to pdf or svg.
+
+### Dependencies
+
+#### `python-fuse`
+
+You need a release ≥ v1.0.5 to run with Python ≥ v3.10.
+Unfortunately Ubuntu has not updated and still distribute python-fuse 1.0.2.
+Fortunately, python-fuse can be installed easily from https://github.com/libfuse/python-fuse
+
+#### `lazy`
+
+This package gives `@lazy`, a decorator to create lazy attributes in classes.
+I couldn't find any package for Ubuntu. You still have `python3 -m pip install lazy`
