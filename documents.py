@@ -70,6 +70,7 @@ class Node(object):
         self.id = id
         self.metadata = metadata
         self.modified = False
+        self.file = None
         if metadata is not None:
             self.file_name = self.name
 

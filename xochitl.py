@@ -347,6 +347,7 @@ class Xochitl(Fuse):
 
             self.node = self.fs.node(path)
             if self.node == None:
+                # New Document
                 logger.debug("Creating '" + path + "'")
                 parent, name = self.fs.parent(path)
                 
@@ -356,30 +357,27 @@ class Xochitl(Fuse):
                             path)
 
                 self.node = parent.new_document(name)
-                file_path = "./." + self.node.id
-            
-            # Don't allow overwriting existing files
-            # (changing this needs more code in documents.py)
-            #if flags & os.O_WRONLY or flags & os.O_RDWR and not isinstance(node, NewDocument):
-            elif flags & os.O_WRONLY or flags & os.O_RDWR:
-                logger.debug(os.strerror(errno.EPERM))
-                raise OSError(errno.EPERM, os.strerror(errno.EPERM), path)
+                #file_path = "./." + self.node.id
+            else:
+                # Don't allow overwriting existing files
+                # (changing this needs more code in documents.py)
+                if flags & os.O_WRONLY or flags & os.O_RDWR:
+                    logger.debug(os.strerror(errno.EPERM))
+                    raise OSError(errno.EPERM, os.strerror(errno.EPERM), path)
 
-            elif self.node.file_type() != "notebook":
-                #We have an underlying file we can read or write
-                #TODO: how to get file annotations ?
-                file_path = "./" + self.node.id + "." + self.node.file_type()
+                elif self.node.file_type() != "notebook":
+                    #We have an underlying file we can read or write
+                    #TODO: how to get file annotations ?
+                    file_path = "./" + self.node.id + "." + self.node.file_type()
 
-            logger.debug("Open underlying file")
-            logger.debug(file_path)
-            self.node.file = open(file_path, flag2mode(flags))
-            #self.file = os.fdopen(os.open(file_path, flags, *mode),
-            #                      flag2mode(flags))
-            self.fd = self.node.file.fileno()
-            #if hasattr(os, 'pread'):
-            #    self.iolock = None
-            #else:
-            #    self.iolock = Lock()
+                logger.debug("Open underlying file")
+                logger.debug(file_path)
+                self.node.file = open(file_path, flag2mode(flags))
+                self.fd = self.node.file.fileno()
+                #if hasattr(os, 'pread'):
+                #    self.iolock = None
+                #else:
+                #    self.iolock = Lock()
 
         def open(self, path, flags):
             """Do we have to implement this since it's done in __init__()"""
@@ -435,21 +433,21 @@ class Xochitl(Fuse):
         def release(self, flags):
             """File is closed and no more accessible"""
             logger.debug("release")
-            self.node.file.close()
-            self.node.file = None
+            if self.node.file != None:
+                self.node.file.close()
+                self.node.file = None
 
         def _fflush(self):
-            logger.debug("_fflush '" + self.node.name + "' ("
-                    + self.node.file.mode + ")")
-            if 'w' in self.node.file.mode or 'a' in self.node.file.mode:
-                self.node.file.flush()
-                try:
-                    self.node.save()
-                except IOError:
-                    # File conversion error
-                    traceback.print_exc()
-                    raise OSError(errno.EIO, os.strerror(errno.EIO),
-                            self.node.name)
+            logger.debug("_fflush '" + self.node.name + "'")
+            #if 'w' in self.node.file.mode or 'a' in self.node.file.mode:
+            #    self.node.file.flush()
+            try:
+                self.node.save()
+            except IOError:
+                # File conversion error
+                traceback.print_exc()
+                raise OSError(errno.EIO, os.strerror(errno.EIO),
+                        self.node.name)
 
         def fsync(self, isfsyncfile):
             logger.debug("fsync")
@@ -468,7 +466,28 @@ class Xochitl(Fuse):
 
         def fgetattr(self):
             logger.debug("fgetattr")
-            return os.fstat(self.fd)
+            #return os.fstat(self.fd)
+            st = MyStat()
+
+            node = self.node
+            if node == None:
+                return -errno.ENOENT
+        
+            st.st_mode = stat.S_IRUSR + stat.S_IRGRP + stat.S_IROTH + stat.S_IFREG
+            st.st_uid = os.getuid()
+            st.st_gid = os.getgid()
+            st.st_nlink = 1
+            st.st_size = node.size
+        
+            mtime = node.mtime
+            st.st_atime = mtime
+            st.st_mtime = mtime
+            st.st_ctime = mtime
+
+            return st
+
+
+            
 
         def ftruncate(self, len):
             logger.debug("ftruncate")

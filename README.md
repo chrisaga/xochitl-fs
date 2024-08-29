@@ -26,11 +26,14 @@ You can mount a reMarkable documents backup directory and browse it as a documen
 	- Actually save node with all the metadata files by calling node.save() from flush() call (done)
 * Use node.read() to read node data.
 * Transfer the `.file` object from the `XochitlFile` object to the `XochitlFile.node` so it can be acceded from the documents module (`node.read()`) and we can get rid of the "@lazy property" (then the `lazy` module dependency)
+* Figure-out the fd management without temporary file
+* Forge better fgetattr() result
 
 ### To Do
 
-* Figure-out the fd management without temporary file
+
 * Check if something is to be done with `NewNodes` to make them regular `Nodes` after they have been saved.
+* Figure-out iolock
 * Read notebook file in a single data structure which can be latter used to create a duplicate in the xochitl filesystem (i.e. implement a true copy/paste or cp command)
 * Create and write new notebook files from a previously read data structure
 * Better detection of epub files (any kind of zip file begins with `PK`):
