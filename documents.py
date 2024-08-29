@@ -285,6 +285,7 @@ class DocumentRoot(Collection):
 
         node = self.load_node_without_linking(id)
         if node is not None: node.link()
+        logger.debug("node /id = '" + node.id + "' name = '" + node.name +"'/ loaded")
         return node
 
     def load_node_without_linking(self, id):

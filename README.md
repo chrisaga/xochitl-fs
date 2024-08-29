@@ -11,9 +11,14 @@ I decided to:
 * make it work with a local backup of the reMarkable files (easyier debugging and less risks of ruining the actual documents)
 * decide latter if it'd worth implementing direct ssh connection again (several options already exist for syncing or backuping the tablet)
 
-## Status : Proof Of Concept
+## Status : MVP
 
-You can mount a reMarkable documents backup directory and browse it as a document arborescence.
+You can :
+
+* Mount a reMarkable documents backup directory and browse it as a document tree.
+* Read pdf and epub documents from the fuse filesystem
+* Copy pdf and epub documents
+* Move, rename and delete documents and directories (Collections) - documents are still there. They are just marked "Deleted".
 
 ### Done
 
@@ -28,11 +33,10 @@ You can mount a reMarkable documents backup directory and browse it as a documen
 * Transfer the `.file` object from the `XochitlFile` object to the `XochitlFile.node` so it can be acceded from the documents module (`node.read()`) and we can get rid of the "@lazy property" (then the `lazy` module dependency)
 * Figure-out the fd management without temporary file
 * Forge better fgetattr() result
+* Make`NewNodes` into regular `Nodes` after they have been saved so we can read them.
 
 ### To Do
 
-
-* Check if something is to be done with `NewNodes` to make them regular `Nodes` after they have been saved.
 * Figure-out iolock
 * Read notebook file in a single data structure which can be latter used to create a duplicate in the xochitl filesystem (i.e. implement a true copy/paste or cp command)
 * Create and write new notebook files from a previously read data structure
@@ -45,16 +49,20 @@ You can mount a reMarkable documents backup directory and browse it as a documen
 00000030  6e 2f 65 70 75 62 2b 7a  69 70 50 4b 03 04 0a 00  |n/epub+zipPK....|
 ~~~
 
+* Figure-out a way to package and distribute this stuff
 
 ### Might Do
+
 * Auto convert notebook files to the latest version when written
 * Dolphin "services" to implement useful menus like convert to pdf or svg.
 
-### Dependencies
+## Dependencies
 
-#### `python-fuse`
+### `python-fuse`
 
 You need a release ≥ v1.0.5 to run with Python ≥ v3.10.
 Unfortunately Ubuntu has not updated and still distribute python-fuse 1.0.2.
 Fortunately, python-fuse can be installed easily from https://github.com/libfuse/python-fuse
 
+## Disclaimer
+Python is far from being my native language. I may make some obvious mistakes. PR are welcome.

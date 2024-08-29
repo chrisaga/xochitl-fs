@@ -437,8 +437,16 @@ class Xochitl(Fuse):
                 self.node.file.close()
                 self.node.file = None
 
+            if isinstance(self.node, NewDocument):
+                # Node is saved now. Let it be a regular node
+                nodeid = self.node.id
+                self.node.parent.remove_child(self.node)
+                self.node = self.fs.documents.load_node(nodeid)
+
         def _fflush(self):
-            logger.debug("_fflush '" + self.node.name + "'")
+            logger.debug("_fflush '" + self.node.name + "' " + type(self.node).__name__)
+            logger.debug(isinstance(self.node, NewDocument))
+            logger.debug(isinstance(self.node, Document))
             #if 'w' in self.node.file.mode or 'a' in self.node.file.mode:
             #    self.node.file.flush()
             try:
@@ -460,6 +468,7 @@ class Xochitl(Fuse):
         def flush(self):
             logger.debug("flush")
             self._fflush()
+            
             # cf. xmp_flush() in fusexmp_fh.c
             # TODO: something to do with the fdopen
             #os.close(os.dup(self.fd))
