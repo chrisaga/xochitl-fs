@@ -399,12 +399,12 @@ class Document(Node):
         """Return the type of file."""
         return self.content["fileType"]
 
-    #@lazy
-    #def file(self):
-    #    """A file handle to the file contents itself."""
-    #    ext = self.file_type()
-    #    """ HK """
-    #    return open(self.id + "." + ext, "rb")
+    @lazy
+    def file(self):
+        """A file handle to the file contents itself."""
+        ext = self.file_type()
+        """ HK """
+        return open(self.id + "." + ext, "rb")
 
     @property
     def size(self):
