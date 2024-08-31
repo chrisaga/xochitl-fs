@@ -368,12 +368,13 @@ class Xochitl(Fuse):
                 elif self.node.file_type() != "notebook":
                     #We have an underlying file we can read or write
                     #TODO: how to get file annotations ?
+                    #TODO: how do we open and read .notebook files
                     file_path = "./" + self.node.id + "." + self.node.file_type()
+                    logger.debug("Open underlying file")
+                    logger.debug(file_path)
+                    self.node.file = open(file_path, flag2mode(flags))
+                    self.fd = self.node.file.fileno()
 
-                logger.debug("Open underlying file")
-                logger.debug(file_path)
-                self.node.file = open(file_path, flag2mode(flags))
-                self.fd = self.node.file.fileno()
                 #if hasattr(os, 'pread'):
                 #    self.iolock = None
                 #else:
@@ -393,7 +394,7 @@ class Xochitl(Fuse):
             #logger.debug("read '" + self.file.name + "'")
             #we don't have a file.name, probably due to fdopen()
             #TODO: investigate
-            logger.debug("read")
+            logger.debug("read '" + self.node.name + "' (" + self.node.file_type() + ")")
             #if self.iolock:
             #    self.iolock.acquire()
             #    try:
@@ -404,15 +405,21 @@ class Xochitl(Fuse):
             #else:
             #    return os.pread(self.fd, length, offset)
             if isinstance(self.node, Collection):
-                raise OSError(errno.EISDIR, os.strerror(errno.EIO),
+                raise OSError(errno.EISDIR, os.strerror(errno.EISDIR),
                             self.node.name)
+
+            if self.node.file_type() == "notebook":
+                #We don't know how to read them (yet)
+                raise OSError(errno.ENOSYS,
+                        os.strerror(errno.ENOSYS) + " (read)",
+                        self.node.name)
                 
             return self.node.read(offset, length) 
 
         def write(self, buf, offset):
             """Write in a xochitl node.
-               nothin on the underliying filesystem untill node.save()"""
-            logger.debug("write")
+               nothing on the underliying filesystem untill node.save()"""
+            logger.debug("read '" + self.node.name + "' (" + self.node.file_type() + ")")
             #if self.iolock:
             #    self.iolock.acquire()
             #    try:
@@ -428,6 +435,12 @@ class Xochitl(Fuse):
                             self.node.name)
             self.node.write(offset, buf)
         
+            if self.node.file_type() == "notebook":
+                #We don't know how to write them (yet)
+                raise OSError(errno.ENOSYS,
+                        os.strerror(errno.ENOSYS) + " (write)",
+                        self.node.name)
+                
             return len(buf)
 
         def release(self, flags):
